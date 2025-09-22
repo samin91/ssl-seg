@@ -1,12 +1,12 @@
 #!/bin/bash
 
-DATA_PATH="/Users/samin91/Desktop/Projects/SSL/Collections/Industrial_Burner_Flames_noAugmentation"
-EPOCHS=20
+DATA_PATH="/Users/samin91/Desktop/Projects/ssl-semseg/Collections/Industrial_Burner_Flames_noAugmentation"
+EPOCHS=30
 BATCH_SIZE=4
 LEARNING_RATE=1e-3
 NUM_CLASSES=2  # grey scale images - foreground and background classes
 PRETRAIN_TYPE="swav"  #["none", "imagenet", "simclr", "moco", "swav"]
-PRETRAIN_PATH="/Users/samin91/Desktop/Projects/SSL/Weights"  #"Path to self-supervised VISSL weights (.pth)"
+PRETRAIN_PATH="/Users/samin91/Desktop/Projects/ssl-semseg/Weights"  #"Path to self-supervised VISSL weights (.pth)"
 LOGGER_CSV="training_log.csv"
 LOGGER_TENSOIRBOARD="runs/experiment1"
 
