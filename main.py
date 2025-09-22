@@ -49,6 +49,10 @@ class FlameDataset(Dataset):
         img_path = os.path.join(self.root, self.split, "images", self.images[idx])
         mask_path = os.path.join(self.root, self.split, "masks", self.masks[idx])
 
+        # Debug log (only for first few samples to avoid spam)
+        if idx < 5:
+            print(f"[{self.split}] Loading {img_path} and {mask_path}")
+
         # convert .tif images and masks to tensor - convert images to RGB
         img_greyscale = Image.open(img_path).convert("L")  # replicate grayscale -> RGB
         img_tensor_greyscale = T.ToTensor()(img_greyscale)
