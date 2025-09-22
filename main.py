@@ -16,6 +16,8 @@ import pdb
 # ------------------------------
 # 0. Utility function
 # ------------------------------
+# 0.1
+# ------------------------------
 def compute_dataset_stats(images_dir, split="train"):
     train_images = images_dir + "/" + split + '/images'
     imgs = [np.array(Image.open(os.path.join(train_images, f)).convert("L"), dtype=np.float32)/255.0
@@ -24,6 +26,30 @@ def compute_dataset_stats(images_dir, split="train"):
     mean = imgs.mean()
     std = imgs.std()
     return mean, std
+# ------------------------------
+# 0.2. Dice loss function
+# ------------------------------
+class DiceLoss(nn.Module):
+    def __init__(self, smooth=1.0):
+        super().__init__()
+        self.smooth = smooth
+
+    def forward(self, logits, true, eps=1e-7):
+        """
+        logits: [B, C, H, W] - raw output from model
+        true: [B, H, W] - ground truth class indices
+        """
+        num_classes = logits.shape[1]
+        true_one_hot = F.one_hot(true, num_classes=num_classes)  # [B, H, W, C]
+        true_one_hot = true_one_hot.permute(0, 3, 1, 2).float()  # [B, C, H, W]
+
+        probs = F.softmax(logits, dim=1)  # [B, C, H, W]
+
+        dims = (0, 2, 3)  # sum over batch and spatial dimensions
+        intersection = torch.sum(probs * true_one_hot, dims)
+        cardinality = torch.sum(probs + true_one_hot, dims)
+        dice_loss = 1.0 - ((2. * intersection + self.smooth) / (cardinality + self.smooth))
+        return dice_loss.mean()
 # ------------------------------
 # 1. Dataset
 # ------------------------------
@@ -65,8 +91,6 @@ class FlameDataset(Dataset):
        #mask = torch.as_tensor(np.array(mask), dtype=torch.long)
 
         return image, mask
-
-
 # ------------------------------
 # 2. Model with ResNet50 + FPN
 # ------------------------------
@@ -159,34 +183,60 @@ import numpy as np
 def train(model, dataloader, optimizer, criterion, device):
     model.train()
     total_loss = 0.0
+    total_correct = 0
+    total_pixels = 0
+
     train_loop = tqdm(dataloader,leave=False, desc="Training", dynamic_ncols=True, ascii=True)
     for imgs, masks in train_loop:
         imgs, masks = imgs.to(device), masks.to(device)
         masks = masks.squeeze(1).long()
         optimizer.zero_grad()
         outputs = model(imgs)
-        loss = criterion(outputs, masks)
+        #loss = criterion(outputs, masks)
+        loss = DiceLoss()
         loss.backward()
         optimizer.step()
 
         total_loss += loss.item()
+
+        # ---------- Compute pixel-wise accuracy ----------
+        preds = outputs.argmax(dim=1)  # [B, H, W]
+        total_correct += (preds == masks).sum().item()
+        total_pixels += masks.numel()
+
         train_loop.set_postfix(loss=loss.item())
-    return total_loss / len(dataloader)
+    
+    avg_loss = total_loss / len(dataloader)
+    accuracy = total_correct / total_pixels
+    return avg_loss, accuracy
 
 
 def evaluate(model, dataloader, criterion, device):
     model.eval()
     total_loss = 0.0
+    total_correct = 0
+    total_pixels = 0
+
     val_loop = tqdm(dataloader, leave=False, desc="Validation", dynamic_ncols=True, ascii=True)
     with torch.no_grad():
         for imgs, masks in val_loop:
             imgs, masks = imgs.to(device), masks.to(device)
             masks = masks.squeeze(1).long()
             outputs = model(imgs)
-            loss = criterion(outputs, masks)
+            #loss = criterion(outputs, masks)
+            loss = DiceLoss()
             total_loss += loss.item()
+
+            # ---------- Compute pixel-wise accuracy ----------
+            preds = outputs.argmax(dim=1)        # [B, H, W]
+            total_correct += (preds == masks).sum().item()
+            total_pixels += masks.numel()
+
             val_loop.set_postfix(loss=loss.item())
-    return total_loss / len(dataloader)
+
+    avg_loss = total_loss / len(dataloader)
+    accuracy = total_correct / total_pixels
+    return avg_loss, accuracy
 
 
 # ------------------------------
@@ -236,11 +286,13 @@ if __name__ == "__main__":
     model = FPN_Segmentation(num_classes=args.num_classes, 
                              pretrain_type=args.pretrain_type, 
                              pretrain_path=args.pretrain_path).to(device)
-
+    # count model's trainable parameters 
+    num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Total trainable parameters: {num_params:,}")
     # loss + optimizer
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss() # region-based Dice loss
     # criterion = nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = torch.optim.Adam(model.parameters(), momentum=0.9, lr=args.lr) #adam optimizer
 
     # ------------------------------
     # Setup logging
@@ -257,17 +309,20 @@ if __name__ == "__main__":
     # Train loop
     # ------------------------------
     for epoch in range(args.epochs):
-        train_loss = train(model, train_loader, optimizer, criterion, device)
-        val_loss = evaluate(model, val_loader, criterion, device)
-        print(f"Epoch {epoch+1}: train loss={train_loss:.4f}, val loss={val_loss:.4f}")
+        train_loss, train_acc = train(model, train_loader, optimizer, criterion, device)
+        val_loss, val_acc = evaluate(model, val_loader, criterion, device)
+        print(f"Epoch {epoch+1}: train loss={train_loss:.4f}, train acc={train_acc:.4f}, 
+                        val loss={val_loss:.4f}, val acc={val_acc:.4f}")
 
         # Log to CSV
-        csv_writer.writerow([epoch+1, train_loss, val_loss])
+        csv_writer.writerow([epoch+1, train_loss, train_acc, val_loss, val_acc])
         csv_file.flush()  # ensure it's written to disk
 
         # Log to TensorBoard
         writer.add_scalar("Loss/train", train_loss, epoch+1)
         writer.add_scalar("Loss/val", val_loss, epoch+1)
+        writer.add_scalar("Accuracy/train", train_acc, epoch+1)
+        writer.add_scalar("Accuracy/val", val_acc, epoch+1)
 
     # Close loggers
     csv_file.close()
