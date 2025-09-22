@@ -1,0 +1,17 @@
+# Dataset
+Collections/Industrial_Burner_Flames_noAugmentation/
+
+# Training logs
+runs/
+training_log.csv
+
+# macOS and Python cache
+.DS_Store
+*.pyc
+__pycache__/
+
+# Virtual environment
+ssl-venv/
+
+# Large pretrained weights
+Weights/
