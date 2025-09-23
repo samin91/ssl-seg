@@ -6,6 +6,7 @@ from torchvision.ops import FeaturePyramidNetwork
 from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as T
 from losses.Dice import DiceLoss
+from utils.visualization import visualize_predictions 
 from PIL import Image
 import os
 import argparse
@@ -193,7 +194,6 @@ def train(model, dataloader, optimizer, criterion, device):
         masks = masks.squeeze(1).long()
         optimizer.zero_grad()
         outputs = model(imgs)
-        criterion = DiceLoss()
         loss = criterion(outputs, masks)
         loss.backward()
         optimizer.step()
@@ -224,7 +224,6 @@ def evaluate(model, dataloader, criterion, device):
             imgs, masks = imgs.to(device), masks.to(device)
             masks = masks.squeeze(1).long()
             outputs = model(imgs)
-            criterion = DiceLoss()
             loss = criterion(outputs, masks)
             total_loss += loss.item()
 
@@ -279,6 +278,7 @@ if __name__ == "__main__":
     # datasets
     train_ds = FlameDataset(args.data_root, split="train", transform=transform)
     val_ds = FlameDataset(args.data_root, split="val", transform=transform)
+    test_ds = FlameDataset(args.data_root, split="test", transform=transform)
 
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=0)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, num_workers=0)
@@ -291,8 +291,9 @@ if __name__ == "__main__":
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Total trainable parameters: {num_params:,}")
     # loss + optimizer
-    criterion = nn.CrossEntropyLoss() # region-based Dice loss
-    # criterion = nn.BCEWithLogitsLoss()
+    #criterion = nn.CrossEntropyLoss() 
+    #criterion = nn.BCEWithLogitsLoss()
+    criterion = DiceLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999)) #adam optimizer
 
     # ------------------------------
@@ -323,7 +324,12 @@ if __name__ == "__main__":
         writer.add_scalar("Loss/val", val_loss, epoch+1)
         writer.add_scalar("Accuracy/train", train_acc, epoch+1)
         writer.add_scalar("Accuracy/val", val_acc, epoch+1)
+    
+    print("Training finished. Visualizing sample predictions on validation set...")
+    visualize_predictions(model, test_ds, device, num_samples=3)
 
     # Close loggers
     csv_file.close()
     writer.close()
+
+
