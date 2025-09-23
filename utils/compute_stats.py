@@ -1,4 +1,6 @@
 import os 
+import numpy as np
+from PIL import Image
 
 def compute_dataset_stats(images_dir, split="train"):
     train_images = images_dir + "/" + split + '/images'
