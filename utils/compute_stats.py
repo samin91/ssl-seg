@@ -1,3 +1,5 @@
+import os 
+
 def compute_dataset_stats(images_dir, split="train"):
     train_images = images_dir + "/" + split + '/images'
     imgs = [np.array(Image.open(os.path.join(train_images, f)).convert("L"), dtype=np.float32)/255.0
