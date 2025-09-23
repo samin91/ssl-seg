@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as T
 from losses.Dice import DiceLoss
 from utils.visualization import visualize_predictions 
+from utils.compute_stats import compute_dataset_stats
 from PIL import Image
 import os
 import argparse
@@ -15,43 +16,7 @@ import csv
 from torch.utils.tensorboard import SummaryWriter
 import pdb
 
-# ------------------------------
-# 0. Utility function
-# ------------------------------
-# 0.1
-# ------------------------------
-def compute_dataset_stats(images_dir, split="train"):
-    train_images = images_dir + "/" + split + '/images'
-    imgs = [np.array(Image.open(os.path.join(train_images, f)).convert("L"), dtype=np.float32)/255.0
-            for f in os.listdir(train_images)]
-    imgs = np.stack(imgs, axis=0)
-    mean = imgs.mean()
-    std = imgs.std()
-    return mean, std
-# ------------------------------
-# 0.2. Dice loss function
-# ------------------------------
-# class DiceLoss(nn.Module):
-#     def __init__(self, smooth=1.0):
-#         super().__init__()
-#         self.smooth = smooth
 
-#     def forward(self, logits, true, eps=1e-7):
-#         """
-#         logits: [B, C, H, W] - raw output from model
-#         true: [B, H, W] - ground truth class indices
-#         """
-#         num_classes = logits.shape[1]
-#         true_one_hot = F.one_hot(true, num_classes=num_classes)  # [B, H, W, C]
-#         true_one_hot = true_one_hot.permute(0, 3, 1, 2).float()  # [B, C, H, W]
-
-#         probs = F.softmax(logits, dim=1)  # [B, C, H, W]
-
-#         dims = (0, 2, 3)  # sum over batch and spatial dimensions
-#         intersection = torch.sum(probs * true_one_hot, dims)
-#         cardinality = torch.sum(probs + true_one_hot, dims)
-#         dice_loss = 1.0 - ((2. * intersection + self.smooth) / (cardinality + self.smooth))
-#         return dice_loss.mean()
 # ------------------------------
 # 1. Dataset
 # ------------------------------
