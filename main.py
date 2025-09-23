@@ -5,6 +5,7 @@ from torchvision.models import resnet50
 from torchvision.ops import FeaturePyramidNetwork
 from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as T
+from losses.Dice import DiceLoss
 from PIL import Image
 import os
 import argparse
@@ -29,27 +30,27 @@ def compute_dataset_stats(images_dir, split="train"):
 # ------------------------------
 # 0.2. Dice loss function
 # ------------------------------
-class DiceLoss(nn.Module):
-    def __init__(self, smooth=1.0):
-        super().__init__()
-        self.smooth = smooth
+# class DiceLoss(nn.Module):
+#     def __init__(self, smooth=1.0):
+#         super().__init__()
+#         self.smooth = smooth
 
-    def forward(self, logits, true, eps=1e-7):
-        """
-        logits: [B, C, H, W] - raw output from model
-        true: [B, H, W] - ground truth class indices
-        """
-        num_classes = logits.shape[1]
-        true_one_hot = F.one_hot(true, num_classes=num_classes)  # [B, H, W, C]
-        true_one_hot = true_one_hot.permute(0, 3, 1, 2).float()  # [B, C, H, W]
+#     def forward(self, logits, true, eps=1e-7):
+#         """
+#         logits: [B, C, H, W] - raw output from model
+#         true: [B, H, W] - ground truth class indices
+#         """
+#         num_classes = logits.shape[1]
+#         true_one_hot = F.one_hot(true, num_classes=num_classes)  # [B, H, W, C]
+#         true_one_hot = true_one_hot.permute(0, 3, 1, 2).float()  # [B, C, H, W]
 
-        probs = F.softmax(logits, dim=1)  # [B, C, H, W]
+#         probs = F.softmax(logits, dim=1)  # [B, C, H, W]
 
-        dims = (0, 2, 3)  # sum over batch and spatial dimensions
-        intersection = torch.sum(probs * true_one_hot, dims)
-        cardinality = torch.sum(probs + true_one_hot, dims)
-        dice_loss = 1.0 - ((2. * intersection + self.smooth) / (cardinality + self.smooth))
-        return dice_loss.mean()
+#         dims = (0, 2, 3)  # sum over batch and spatial dimensions
+#         intersection = torch.sum(probs * true_one_hot, dims)
+#         cardinality = torch.sum(probs + true_one_hot, dims)
+#         dice_loss = 1.0 - ((2. * intersection + self.smooth) / (cardinality + self.smooth))
+#         return dice_loss.mean()
 # ------------------------------
 # 1. Dataset
 # ------------------------------
@@ -192,8 +193,8 @@ def train(model, dataloader, optimizer, criterion, device):
         masks = masks.squeeze(1).long()
         optimizer.zero_grad()
         outputs = model(imgs)
-        #loss = criterion(outputs, masks)
-        loss = DiceLoss()
+        criterion = DiceLoss()
+        loss = criterion(outputs, masks)
         loss.backward()
         optimizer.step()
 
@@ -223,8 +224,8 @@ def evaluate(model, dataloader, criterion, device):
             imgs, masks = imgs.to(device), masks.to(device)
             masks = masks.squeeze(1).long()
             outputs = model(imgs)
-            #loss = criterion(outputs, masks)
-            loss = DiceLoss()
+            criterion = DiceLoss()
+            loss = criterion(outputs, masks)
             total_loss += loss.item()
 
             # ---------- Compute pixel-wise accuracy ----------
@@ -292,7 +293,7 @@ if __name__ == "__main__":
     # loss + optimizer
     criterion = nn.CrossEntropyLoss() # region-based Dice loss
     # criterion = nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.Adam(model.parameters(), momentum=0.9, lr=args.lr) #adam optimizer
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999)) #adam optimizer
 
     # ------------------------------
     # Setup logging
@@ -311,8 +312,7 @@ if __name__ == "__main__":
     for epoch in range(args.epochs):
         train_loss, train_acc = train(model, train_loader, optimizer, criterion, device)
         val_loss, val_acc = evaluate(model, val_loader, criterion, device)
-        print(f"Epoch {epoch+1}: train loss={train_loss:.4f}, train acc={train_acc:.4f}, 
-                        val loss={val_loss:.4f}, val acc={val_acc:.4f}")
+        print(f"Epoch {epoch+1}: train loss={train_loss:.4f}, train acc={train_acc:.4f}, val loss={val_loss:.4f}, val acc={val_acc:.4f}")
 
         # Log to CSV
         csv_writer.writerow([epoch+1, train_loss, train_acc, val_loss, val_acc])
