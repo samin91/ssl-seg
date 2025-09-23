@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import random
-
+import torch
 # ------------------------------
 # Visualization utility
 # ------------------------------
