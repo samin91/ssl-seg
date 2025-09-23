@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DATA_PATH="/Users/samin91/Desktop/Projects/ssl-semseg/Collections/Industrial_Burner_Flames_noAugmentation"
-EPOCHS=30
+EPOCHS=1
 BATCH_SIZE=4
 LEARNING_RATE=1e-3
 NUM_CLASSES=2  # grey scale images - foreground and background classes
