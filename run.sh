@@ -10,6 +10,7 @@ PRETRAIN_PATH="/Users/samin91/Desktop/Projects/ssl-semseg/Weights"  #"Path to se
 LOGGER_CSV="training_log.csv"
 LOGGER_TENSOIRBOARD="runs"
 SUBSET_FRAC=0.01
+FREEZE=True
 
 python3 main.py \
     --data_root $DATA_PATH \
@@ -21,4 +22,5 @@ python3 main.py \
     --pretrain_path $PRETRAIN_PATH \
     --log_csv $LOGGER_CSV \
     --log_tb $LOGGER_TENSOIRBOARD \
-    --subset_frac $SUBSET_FRAC 
+    --subset_frac $SUBSET_FRAC \
+    --freeze_backbone_fpn 

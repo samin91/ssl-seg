@@ -224,7 +224,9 @@ if __name__ == "__main__":
      "help": "Path to self-supervised VISSL weights (.pth)"},
     {"name": "--log_csv", "type": str, "default": "training_log.csv"},
     {"name": "--log_tb", "type": str, "default": "runs/experiment1"}, 
-    {"name": "--subset_frac", "type": float, "default": 1.0}
+    {"name": "--subset_frac", "type": float, "default": 1.0},
+    {"name": "--freeze_backbone_fpn", "action": "store_true",
+    "help": "Freeze the backbone and FPN, train only the segmentation head"}
     ]
 
     parser = argparse.ArgumentParser()
@@ -276,11 +278,26 @@ if __name__ == "__main__":
     # count model's trainable parameters 
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Total trainable parameters: {num_params:,}")
+
+    # Freeze the backbone 
+    if args.freeze_backbone_fpn:
+        print("Freezing backbone and FPN. Training only the segmentation head.")
+        # Freeze resnet50
+        for param in model.body.parameters():
+            param.requires_grad = False
+        # Freeze FPN
+        for param in model.fpn.parameters():
+            param.requires_grad = False
+
     # loss + optimizer
     criterion = nn.CrossEntropyLoss() 
     #criterion = nn.BCEWithLogitsLoss()
     #criterion = DiceLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999)) #adam optimizer
+    if args.freeze_backbone_fpn:
+        optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), 
+                             lr=args.lr, betas=(0.9, 0.999))
+    else:
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999)) #adam optimizer
 
     # ------------------------------
     # Setup logging
