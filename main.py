@@ -223,7 +223,8 @@ if __name__ == "__main__":
     {"name": "--pretrain_path", "type": str, "default": None,
      "help": "Path to self-supervised VISSL weights (.pth)"},
     {"name": "--log_csv", "type": str, "default": "training_log.csv"},
-    {"name": "--log_tb", "type": str, "default": "runs/experiment1"}, 
+    {"name": "--log_tb", "type": str, "default": "runs/"}, 
+    {"name": "--img_prediction_path", "type": str, "default": "img_predcitions/"},
     {"name": "--subset_frac", "type": float, "default": 1.0},
     {"name": "--freeze_backbone_fpn", "action": "store_true",
     "help": "Freeze the backbone and FPN, train only the segmentation head"}
@@ -293,6 +294,7 @@ if __name__ == "__main__":
     criterion = nn.CrossEntropyLoss() 
     #criterion = nn.BCEWithLogitsLoss()
     #criterion = DiceLoss()
+
     if args.freeze_backbone_fpn:
         optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), 
                              lr=args.lr, betas=(0.9, 0.999))
@@ -341,7 +343,13 @@ if __name__ == "__main__":
         writer.add_scalar("Accuracy/val", val_acc, epoch+1)
     
     print("Training finished. Visualizing sample predictions on validation set...")
-    visualize_predictions(model, test_ds, device, num_samples=3)
+    save_path = os.path.join(args.img_prediction_path, run_name, "predictions.png")
+    visualize_predictions(model, test_ds, device, num_samples=3, save_path=save_path)
+
+    # add the image predictions to tensorboard 
+    pred_img = Image.open(save_path)
+    pred_img = T.ToTensor()(pred_img)  # convert to tensor [C, H, W]
+    writer.add_image("Predictions", pred_img, global_step=args.epochs, dataformats="CHW")
 
     # Close loggers
     csv_file.close()
