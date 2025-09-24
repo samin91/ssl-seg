@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DATA_PATH="/Users/samin91/Desktop/Projects/ssl-semseg/Collections/Industrial_Burner_Flames_noAugmentation"
-EPOCHS=5
+EPOCHS=30
 BATCH_SIZE=4
 LEARNING_RATE=1e-3
 NUM_CLASSES=2  # grey scale images - foreground and background classes
@@ -9,6 +9,7 @@ PRETRAIN_TYPE="imagenet"  #["none", "imagenet", "simclr", "moco", "swav"]
 PRETRAIN_PATH="/Users/samin91/Desktop/Projects/ssl-semseg/Weights"  #"Path to self-supervised VISSL weights (.pth)"
 LOGGER_CSV="training_log.csv"
 LOGGER_TENSOIRBOARD="runs"
+SUBSET_FRAC=0.01
 
 python3 main.py \
     --data_root $DATA_PATH \
@@ -19,4 +20,5 @@ python3 main.py \
     --pretrain_type $PRETRAIN_TYPE \
     --pretrain_path $PRETRAIN_PATH \
     --log_csv $LOGGER_CSV \
-    --log_tb $LOGGER_TENSOIRBOARD
+    --log_tb $LOGGER_TENSOIRBOARD \
+    --subset_frac $SUBSET_FRAC 
