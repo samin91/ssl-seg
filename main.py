@@ -15,6 +15,7 @@ from tqdm import tqdm
 import csv
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
+from torch.utils.data import Subset
 import pdb
 
 
@@ -222,7 +223,9 @@ if __name__ == "__main__":
     {"name": "--pretrain_path", "type": str, "default": None,
      "help": "Path to self-supervised VISSL weights (.pth)"},
     {"name": "--log_csv", "type": str, "default": "training_log.csv"},
-    {"name": "--log_tb", "type": str, "default": "runs/experiment1"}]
+    {"name": "--log_tb", "type": str, "default": "runs/experiment1"}, 
+    {"name": "--subset_frac", "type": float, "default": 1.0}
+    ]
 
     parser = argparse.ArgumentParser()
     for arg in args_list:
@@ -246,8 +249,25 @@ if __name__ == "__main__":
     val_ds = FlameDataset(args.data_root, split="val", transform=transform)
     test_ds = FlameDataset(args.data_root, split="test", transform=transform)
 
-    train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=0)
-    val_loader = DataLoader(val_ds, batch_size=args.batch_size, num_workers=0)
+    if args.subset_frac < 1.0:
+        # ---- take only 1% of training set ----
+        num_train = len(train_ds)
+        subset_size = int(num_train * args.subset_frac)
+        indices = np.random.choice(num_train, subset_size, replace=False)
+        train_ds = Subset(train_ds, indices)
+        print(f"Using {subset_size} samples out of {num_train} ({args.subset_frac*100:.2f}%) for training")
+
+        # ---- (optional) also shrink validation/test if you want ----
+        num_val = len(val_ds)
+        subset_size_val = int(num_val * args.subset_frac)
+        val_indices = np.random.choice(num_val, subset_size_val, replace=False)
+        val_ds = Subset(val_ds, val_indices)
+        print(f"Using {subset_size_val} samples out of {num_val} ({args.subset_frac*100:.2f}%) for training")
+
+        train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=0)
+        val_loader = DataLoader(val_ds, batch_size=args.batch_size, num_workers=0)
+
+
 
     # model
     model = FPN_Segmentation(num_classes=args.num_classes, 
