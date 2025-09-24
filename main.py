@@ -14,6 +14,7 @@ import argparse
 from tqdm import tqdm
 import csv
 from torch.utils.tensorboard import SummaryWriter
+from datetime import datetime
 import pdb
 
 
@@ -264,13 +265,22 @@ if __name__ == "__main__":
     # ------------------------------
     # Setup logging
     # ------------------------------
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+
     # CSV logger
-    csv_file = open(args.log_csv, "w", newline="")
+    csv_file = open(args.log_csv, "a", newline="") #a=append mode
     csv_writer = csv.writer(csv_file)
-    csv_writer.writerow(["Epoch", "Train Loss", "Val Loss"])  # header
+    # If file is empty, write header
+    if csv_file.tell() == 0:
+        csv_writer.writerow(["Timestamp", "RunName", "Epoch",
+                             "Train Loss", "Train Acc",
+                             "Val Loss", "Val Acc",
+                             "Batch Size", "LR", "Pretrain Type"])
 
     # TensorBoard logger
-    writer = SummaryWriter(args.log_tb)
+    run_name = f"{timestamp}_bs{args.batch_size}_lr{args.lr}_{args.pretrain_type}"
+    tb_logdir = os.path.join(args.log_tb, run_name)
+    writer = SummaryWriter(log_dir=tb_logdir)
 
     # ------------------------------
     # Train loop
@@ -281,8 +291,11 @@ if __name__ == "__main__":
         print(f"Epoch {epoch+1}: train loss={train_loss:.4f}, train acc={train_acc:.4f}, val loss={val_loss:.4f}, val acc={val_acc:.4f}")
 
         # Log to CSV
-        csv_writer.writerow([epoch+1, train_loss, train_acc, val_loss, val_acc])
-        csv_file.flush()  # ensure it's written to disk
+        csv_writer.writerow([timestamp, run_name, epoch+1,
+                             train_loss, train_acc,
+                             val_loss, val_acc,
+                             args.batch_size, args.lr, args.pretrain_type])
+        csv_file.flush()  # write immediately
 
         # Log to TensorBoard
         writer.add_scalar("Loss/train", train_loss, epoch+1)
