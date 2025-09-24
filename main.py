@@ -257,9 +257,9 @@ if __name__ == "__main__":
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Total trainable parameters: {num_params:,}")
     # loss + optimizer
-    #criterion = nn.CrossEntropyLoss() 
+    criterion = nn.CrossEntropyLoss() 
     #criterion = nn.BCEWithLogitsLoss()
-    criterion = DiceLoss()
+    #criterion = DiceLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999)) #adam optimizer
 
     # ------------------------------
