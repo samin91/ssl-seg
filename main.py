@@ -292,8 +292,8 @@ if __name__ == "__main__":
 
     # loss + optimizer
     criterion = nn.CrossEntropyLoss() 
-    #criterion = nn.BCEWithLogitsLoss()
-    #criterion = DiceLoss()
+    # criterion = nn.BCEWithLogitsLoss()
+    # criterion = DiceLoss() # ToDo: this is broken! does not 
 
     if args.freeze_backbone_fpn:
         optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), 
