@@ -15,3 +15,4 @@ ssl-venv/
 
 # Large pretrained weights
 Weights/
+img_predictions/
