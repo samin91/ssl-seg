@@ -5,7 +5,6 @@ from torchvision.models import resnet50
 from torchvision.ops import FeaturePyramidNetwork
 from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as T
-from losses.Dice import DiceLoss
 from utils.visualization import visualize_predictions 
 from utils.compute_stats import compute_dataset_stats
 from PIL import Image
@@ -16,7 +15,6 @@ import csv
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 from torch.utils.data import Subset
-import pdb
 
 
 # ------------------------------
@@ -34,8 +32,8 @@ class FlameDataset(Dataset):
         # filter out hidden files like .DS_Store
         self.images = sorted([f for f in os.listdir(image_dir) if not f.startswith('.')])
         self.masks = sorted([f for f in os.listdir(mask_dir) if not f.startswith('.')])
-        #self.images = sorted(os.listdir(os.path.join(root, split, "images")))  # add sorted to ensure deterministic pairing and
-        #self.masks = sorted(os.listdir(os.path.join(root, split, "masks")))
+        # self.images = sorted(os.listdir(os.path.join(root, split, "images")))
+        # self.masks = sorted(os.listdir(os.path.join(root, split, "masks")))
 
     def __len__(self):
         return len(self.images)
@@ -53,16 +51,17 @@ class FlameDataset(Dataset):
         img_tensor_greyscale = T.ToTensor()(img_greyscale)
         img_rgb = img_tensor_greyscale.repeat(3, 1, 1) 
         mask = Image.open(mask_path).convert("L")  # assumes single-channel mask
-        mask= T.ToTensor()(mask)
+        mask = T.ToTensor()(mask)
 
         if self.transform:
-            image = self.transform(img_rgb)
-       #mask = torch.as_tensor(np.array(mask), dtype=torch.long)
+            image = self.transform(img_rgb)  # mask = torch.as_tensor(np.array(mask), dtype=torch.long)
 
         return image, mask
 # ------------------------------
 # 2. Model with ResNet50 + FPN
 # ------------------------------
+
+
 class FPN_Segmentation(nn.Module):
     def __init__(self, num_classes, pretrain_type="imagenet", pretrain_path=None):
         super().__init__()
