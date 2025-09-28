@@ -9,7 +9,7 @@ class JaccardLoss(nn.Module):
         super(JaccardLoss, self).__init__()
         self.ignore_index = ignore_index
         self.smooth = smooth
-      
+          
     def forward(self, input, target):
         input, target = flatten(input, target, self.ignore_index)
         input = softmax(input, dim=1)
@@ -18,14 +18,11 @@ class JaccardLoss(nn.Module):
         for c in range(num_classes):
             target_c = (target == c).float()
             input_c = input[:, c]
-            
             intersection = (input_c * target_c).sum()
             total = (input_c + target_c).sum()
             union = total - intersection
             IoU = (intersection + self.smooth)/(union + self.smooth)
-            
             losses.append(1-IoU)
-        
         losses = torch.stack(losses)
         loss = losses.mean()
         return loss

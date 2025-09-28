@@ -30,8 +30,10 @@ class FlameDataset(Dataset):
         mask_dir = os.path.join(root, split, "masks")
 
         # filter out hidden files like .DS_Store
-        self.images = sorted([f for f in os.listdir(image_dir) if not f.startswith('.')])
-        self.masks = sorted([f for f in os.listdir(mask_dir) if not f.startswith('.')])
+        self.images = sorted([f for f in os.listdir(image_dir)
+                              if not f.startswith('.')])
+        self.masks = sorted([f for f in os.listdir(mask_dir)
+                             if not f.startswith('.')])
         # self.images = sorted(os.listdir(os.path.join(root, split, "images")))
         # self.masks = sorted(os.listdir(os.path.join(root, split, "masks")))
 
@@ -39,22 +41,27 @@ class FlameDataset(Dataset):
         return len(self.images)
 
     def __getitem__(self, idx):
-        img_path = os.path.join(self.root, self.split, "images", self.images[idx])
-        mask_path = os.path.join(self.root, self.split, "masks", self.masks[idx])
+        img_path = os.path.join(self.root, self.split, "images",
+                                self.images[idx])
+        mask_path = os.path.join(self.root, self.split, "masks",
+                                 self.masks[idx])
 
         # Debug log (only for first few samples to avoid spam)
         if idx < 5:
             print(f"[{self.split}] Loading {img_path} and {mask_path}")
 
         # convert .tif images and masks to tensor - convert images to RGB
-        img_greyscale = Image.open(img_path).convert("L")  # replicate grayscale -> RGB
+        # replicate grayscale -> RGB
+        img_greyscale = Image.open(img_path).convert("L")
         img_tensor_greyscale = T.ToTensor()(img_greyscale)
-        img_rgb = img_tensor_greyscale.repeat(3, 1, 1) 
-        mask = Image.open(mask_path).convert("L")  # assumes single-channel mask
+        img_rgb = img_tensor_greyscale.repeat(3, 1, 1)
+        # assumes single-channel mask
+        mask = Image.open(mask_path).convert("L")
         mask = T.ToTensor()(mask)
 
         if self.transform:
-            image = self.transform(img_rgb)  # mask = torch.as_tensor(np.array(mask), dtype=torch.long)
+            # mask = torch.as_tensor(np.array(mask), dtype=torch.long)
+            image = self.transform(img_rgb)
 
         return image, mask
 # ------------------------------
@@ -76,7 +83,8 @@ class FPN_Segmentation(nn.Module):
 
             if pretrain_type in ["simclr", "moco", "swav"]:
                 assert pretrain_path is not None, f"--pretrain_path must be given for {pretrain_type}"
-                pretrain_path = os.path.join(pretrain_path, pretrain_type + ".pth.tar")
+                pretrain_path = os.path.join(pretrain_path, pretrain_type +
+                                             ".pth.tar")
                 checkpoint = torch.load(pretrain_path, map_location="cpu")
 
                 # VISSL checkpoints are nested
@@ -93,18 +101,21 @@ class FPN_Segmentation(nn.Module):
                         k = k[len("resnet."):]
                     new_state_dict[k] = v
 
-                missing, unexpected = resnet.load_state_dict(new_state_dict, strict=False)
-                print("Missing keys:", missing[:5], "..." if len(missing) > 5 else "")
-                print("Unexpected keys:", unexpected[:5], "..." if len(unexpected) > 5 else "")
+                missing, unexpected = resnet.load_state_dict(new_state_dict,
+                                                             strict=False)
+                print("Missing keys:", missing[:5], "..."
+                      if len(missing) > 5 else "")
+                print("Unexpected keys:", unexpected[:5], "..."
+                      if len(unexpected) > 5 else "")
 
             elif pretrain_type == "none":
                 print("Training from scratch")
-        
 
         # Use layers as backbone features
         # resnet50 architecture and if the layers are named correctly
         self.body = nn.ModuleDict({
-            "layer1": nn.Sequential(resnet.conv1, resnet.bn1, resnet.relu, resnet.maxpool, resnet.layer1),
+            "layer1": nn.Sequential(resnet.conv1, resnet.bn1, resnet.relu,
+                                    resnet.maxpool, resnet.layer1),
             "layer2": resnet.layer2,
             "layer3": resnet.layer3,
             "layer4": resnet.layer4,
@@ -257,7 +268,7 @@ if __name__ == "__main__":
         subset_size = int(num_train * args.subset_frac)
         indices = np.random.choice(num_train, subset_size, replace=False)
         train_ds = Subset(train_ds, indices)
-        print(f"Using {subset_size} samples out of {num_train} ({args.subset_frac*100:.2f}%) for training")
+        print(f"Using {subset_size} samples out of {num_train}({args.subset_frac*100:.2f}%) for training")
 
         # ---- (optional) also shrink validation/test if you want ----
         num_val = len(val_ds)
@@ -266,13 +277,13 @@ if __name__ == "__main__":
         val_ds = Subset(val_ds, val_indices)
         print(f"Using {subset_size_val} samples out of {num_val} ({args.subset_frac*100:.2f}%) for training")
 
-        train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=0)
-        val_loader = DataLoader(val_ds, batch_size=args.batch_size, num_workers=0)
-
-
+        train_loader = DataLoader(train_ds, batch_size=args.batch_size,
+                                  shuffle=True, num_workers=0)
+        val_loader = DataLoader(val_ds, batch_size=args.batch_size,
+                                num_workers=0)
 
     # model
-    model = FPN_Segmentation(num_classes=args.num_classes, 
+    model = FPN_Segmentation(num_classes=args.num_classes,
                              pretrain_type=args.pretrain_type, 
                              pretrain_path=args.pretrain_path).to(device)
     # count model's trainable parameters 
@@ -340,18 +351,17 @@ if __name__ == "__main__":
         writer.add_scalar("Loss/val", val_loss, epoch+1)
         writer.add_scalar("Accuracy/train", train_acc, epoch+1)
         writer.add_scalar("Accuracy/val", val_acc, epoch+1)
-    
     print("Training finished. Visualizing sample predictions on validation set...")
     save_path = os.path.join(args.img_prediction_path, run_name, "predictions.png")
-    visualize_predictions(model, test_ds, device, num_samples=3, save_path=save_path)
-
-    # add the image predictions to tensorboard 
+    visualize_predictions(model, test_ds, device, num_samples=3,
+                          save_path=save_path)
+    # add the image predictions to tensorboard
     pred_img = Image.open(save_path)
     pred_img = T.ToTensor()(pred_img)  # convert to tensor [C, H, W]
-    writer.add_image("Predictions", pred_img, global_step=args.epochs, dataformats="CHW")
+    writer.add_image("Predictions", pred_img,
+                     global_step=args.epochs, dataformats="CHW")
 
     # Close loggers
     csv_file.close()
     writer.close()
-
 

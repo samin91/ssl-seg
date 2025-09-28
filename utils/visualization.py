@@ -2,10 +2,15 @@ import matplotlib.pyplot as plt
 import random
 import torch
 import os
+
+
 # ------------------------------
 # Visualization utility
 # ------------------------------
-def visualize_predictions(model, dataset, device, num_samples=3, save_path=None):
+
+
+def visualize_predictions(model, dataset, device,
+                          num_samples=3, save_path=None):
     model.eval()
     indices = random.sample(range(len(dataset)), num_samples)
 
@@ -45,5 +50,4 @@ def visualize_predictions(model, dataset, device, num_samples=3, save_path=None)
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         plt.savefig(save_path)
         print(f"Saved visualization to {save_path}")
-    
     plt.show()

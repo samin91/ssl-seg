@@ -1,6 +1,6 @@
 import torch
-import pytest
-from your_module.utils import flatten  # adjust path based on your repo
+from losses.utils import flatten
+
 
 def test_flatten_basic_case():
     # input: batch_size=1, num_classes=2, height=2, width=2
@@ -20,7 +20,8 @@ def test_flatten_basic_case():
 
     ignore_index = -1
 
-    input_flatten, target_flatten = flatten(input_tensor, target_tensor, ignore_index)
+    input_flatten, target_flatten = flatten(input_tensor,
+                                            target_tensor, ignore_index)
 
     # After flatten:
     # positions: (0,0)=0, (0,1)=1, (1,0)=1, (1,1)=ignore
@@ -29,15 +30,17 @@ def test_flatten_basic_case():
 
     assert torch.equal(target_flatten, expected_targets)
 
-    # input_flatten should have same number of rows as targets, and num_classes=2
+    # input_flatten should have same number of rows as targets, and num_cls=2
     assert input_flatten.shape == (3, 2)
+
 
 def test_flatten_all_ignore():
     input_tensor = torch.randn(1, 3, 2, 2)
     target_tensor = torch.full((1, 2, 2), -1)  # everything is ignore
     ignore_index = -1
 
-    input_flatten, target_flatten = flatten(input_tensor, target_tensor, ignore_index)
+    input_flatten, target_flatten = flatten(input_tensor,
+                                            target_tensor, ignore_index)
 
     # everything is filtered out
     assert input_flatten.numel() == 0
