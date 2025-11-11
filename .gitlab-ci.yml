@@ -1,0 +1,39 @@
+stages:
+  - test
+  - lint
+
+variables:
+  PYTHON_VERSION: "3.10"
+
+default:
+  image: python:${PYTHON_VERSION}
+  before_script:
+    - python --version
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
+    - pip install flake8 black pytest
+
+test:
+  stage: test
+  script:
+    - export PYTHONPATH=$PYTHONPATH:$(pwd)
+    - pytest tests/
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_MERGE_REQUEST_ID'
+
+black_check:
+  stage: lint
+  script:
+    - black --check .
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_MERGE_REQUEST_ID'
+
+flake8_check:
+  stage: lint
+  script:
+    - flake8 .
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_MERGE_REQUEST_ID'
