@@ -100,7 +100,7 @@ class FPN_Segmentation(nn.Module):
                 for k, v in state_dict.items():
                     k = k.replace("module.", "")
                     if k.startswith("resnet."):
-                        k = k[len("resnet."):]
+                        k = k[len("resnet.") :]
                     new_state_dict[k] = v
 
                 missing, unexpected = resnet.load_state_dict(
