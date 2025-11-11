@@ -1,0 +1,7 @@
+[flake8]
+exclude =
+    ssl-venv,
+    Collections,
+    img_predictions,
+    runs
+max-line-length = 100
