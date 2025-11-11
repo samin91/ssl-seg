@@ -1,3 +1,4 @@
 [flake8]
 exclude = ssl-venv, Collections, img_predictions, runs
 max-line-length = 150
+extend-ignore = E203
