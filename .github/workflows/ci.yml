@@ -28,6 +28,7 @@ jobs:
 
     - name: Run tests
       run: |
+        export PYTHONPATH=$PYTHONPATH:$(pwd)
         pytest tests/
 
     - name: Check code formatting with black
