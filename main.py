@@ -12,6 +12,7 @@ import os
 import argparse
 from tqdm import tqdm
 import csv
+import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 from torch.utils.data import Subset
@@ -99,7 +100,7 @@ class FPN_Segmentation(nn.Module):
                 for k, v in state_dict.items():
                     k = k.replace("module.", "")
                     if k.startswith("resnet."):
-                        k = k[len("resnet.") :]
+                        k = k[len("resnet."):]
                     new_state_dict[k] = v
 
                 missing, unexpected = resnet.load_state_dict(
@@ -164,7 +165,6 @@ class FPN_Segmentation(nn.Module):
 # ------------------------------
 # 3. Training loop
 # ------------------------------
-import numpy as np
 
 
 def train(model, dataloader, optimizer, criterion, device):
