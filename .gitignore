@@ -16,3 +16,6 @@ ssl-venv/
 # Large pretrained weights
 Weights/
 img_predictions/
+
+# linter
+*.flake8
