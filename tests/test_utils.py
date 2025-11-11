@@ -5,23 +5,21 @@ from losses.utils import flatten
 def test_flatten_basic_case():
     # input: batch_size=1, num_classes=2, height=2, width=2
     input_tensor = torch.tensor(
-        [[
-            [[1.0, 2.0], [3.0, 4.0]],   # class 0 scores
-            [[5.0, 6.0], [7.0, 8.0]]    # class 1 scores
-        ]]
+        [
+            [
+                [[1.0, 2.0], [3.0, 4.0]],  # class 0 scores
+                [[5.0, 6.0], [7.0, 8.0]],  # class 1 scores
+            ]
+        ]
     )  # shape [1, 2, 2, 2]
 
     target_tensor = torch.tensor(
-        [[
-            [0, 1],
-            [1, -1]
-        ]]
+        [[[0, 1], [1, -1]]]
     )  # shape [1, 2, 2], with -1 as ignore index
 
     ignore_index = -1
 
-    input_flatten, target_flatten = flatten(input_tensor,
-                                            target_tensor, ignore_index)
+    input_flatten, target_flatten = flatten(input_tensor, target_tensor, ignore_index)
 
     # After flatten:
     # positions: (0,0)=0, (0,1)=1, (1,0)=1, (1,1)=ignore
@@ -39,8 +37,7 @@ def test_flatten_all_ignore():
     target_tensor = torch.full((1, 2, 2), -1)  # everything is ignore
     ignore_index = -1
 
-    input_flatten, target_flatten = flatten(input_tensor,
-                                            target_tensor, ignore_index)
+    input_flatten, target_flatten = flatten(input_tensor, target_tensor, ignore_index)
 
     # everything is filtered out
     assert input_flatten.numel() == 0

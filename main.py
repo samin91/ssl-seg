@@ -5,7 +5,7 @@ from torchvision.models import resnet50
 from torchvision.ops import FeaturePyramidNetwork
 from torch.utils.data import DataLoader, Dataset
 import torchvision.transforms as T
-from utils.visualization import visualize_predictions 
+from utils.visualization import visualize_predictions
 from utils.compute_stats import compute_dataset_stats
 from PIL import Image
 import os
@@ -30,10 +30,10 @@ class FlameDataset(Dataset):
         mask_dir = os.path.join(root, split, "masks")
 
         # filter out hidden files like .DS_Store
-        self.images = sorted([f for f in os.listdir(image_dir)
-                              if not f.startswith('.')])
-        self.masks = sorted([f for f in os.listdir(mask_dir)
-                             if not f.startswith('.')])
+        self.images = sorted(
+            [f for f in os.listdir(image_dir) if not f.startswith(".")]
+        )
+        self.masks = sorted([f for f in os.listdir(mask_dir) if not f.startswith(".")])
         # self.images = sorted(os.listdir(os.path.join(root, split, "images")))
         # self.masks = sorted(os.listdir(os.path.join(root, split, "masks")))
 
@@ -41,10 +41,8 @@ class FlameDataset(Dataset):
         return len(self.images)
 
     def __getitem__(self, idx):
-        img_path = os.path.join(self.root, self.split, "images",
-                                self.images[idx])
-        mask_path = os.path.join(self.root, self.split, "masks",
-                                 self.masks[idx])
+        img_path = os.path.join(self.root, self.split, "images", self.images[idx])
+        mask_path = os.path.join(self.root, self.split, "masks", self.masks[idx])
 
         # Debug log (only for first few samples to avoid spam)
         if idx < 5:
@@ -64,6 +62,8 @@ class FlameDataset(Dataset):
             image = self.transform(img_rgb)
 
         return image, mask
+
+
 # ------------------------------
 # 2. Model with ResNet50 + FPN
 # ------------------------------
@@ -82,9 +82,10 @@ class FPN_Segmentation(nn.Module):
             resnet = resnet50(weights=None)
 
             if pretrain_type in ["simclr", "moco", "swav"]:
-                assert pretrain_path is not None, f"--pretrain_path must be given for {pretrain_type}"
-                pretrain_path = os.path.join(pretrain_path, pretrain_type +
-                                             ".pth.tar")
+                assert (
+                    pretrain_path is not None
+                ), f"--pretrain_path must be given for {pretrain_type}"
+                pretrain_path = os.path.join(pretrain_path, pretrain_type + ".pth.tar")
                 checkpoint = torch.load(pretrain_path, map_location="cpu")
 
                 # VISSL checkpoints are nested
@@ -98,40 +99,45 @@ class FPN_Segmentation(nn.Module):
                 for k, v in state_dict.items():
                     k = k.replace("module.", "")
                     if k.startswith("resnet."):
-                        k = k[len("resnet."):]
+                        k = k[len("resnet.") :]
                     new_state_dict[k] = v
 
-                missing, unexpected = resnet.load_state_dict(new_state_dict,
-                                                             strict=False)
-                print("Missing keys:", missing[:5], "..."
-                      if len(missing) > 5 else "")
-                print("Unexpected keys:", unexpected[:5], "..."
-                      if len(unexpected) > 5 else "")
+                missing, unexpected = resnet.load_state_dict(
+                    new_state_dict, strict=False
+                )
+                print("Missing keys:", missing[:5], "..." if len(missing) > 5 else "")
+                print(
+                    "Unexpected keys:",
+                    unexpected[:5],
+                    "..." if len(unexpected) > 5 else "",
+                )
 
             elif pretrain_type == "none":
                 print("Training from scratch")
 
         # Use layers as backbone features
         # resnet50 architecture and if the layers are named correctly
-        self.body = nn.ModuleDict({
-            "layer1": nn.Sequential(resnet.conv1, resnet.bn1, resnet.relu,
-                                    resnet.maxpool, resnet.layer1),
-            "layer2": resnet.layer2,
-            "layer3": resnet.layer3,
-            "layer4": resnet.layer4,
-        })
+        self.body = nn.ModuleDict(
+            {
+                "layer1": nn.Sequential(
+                    resnet.conv1, resnet.bn1, resnet.relu, resnet.maxpool, resnet.layer1
+                ),
+                "layer2": resnet.layer2,
+                "layer3": resnet.layer3,
+                "layer4": resnet.layer4,
+            }
+        )
 
         # Feature Pyramid Network
         self.fpn = FeaturePyramidNetwork(
-            in_channels_list=[256, 512, 1024, 2048],
-            out_channels=256
+            in_channels_list=[256, 512, 1024, 2048], out_channels=256
         )
 
         # Segmentation head: 1x1 conv + upsampling
         self.head = nn.Sequential(
             nn.Conv2d(256, 128, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
-            nn.Conv2d(128, num_classes, kernel_size=1)
+            nn.Conv2d(128, num_classes, kernel_size=1),
         )
 
     def forward(self, x):
@@ -154,10 +160,12 @@ class FPN_Segmentation(nn.Module):
         out = F.interpolate(out, scale_factor=4, mode="bilinear", align_corners=False)
         return out
 
+
 # ------------------------------
 # 3. Training loop
 # ------------------------------
 import numpy as np
+
 
 def train(model, dataloader, optimizer, criterion, device):
     model.train()
@@ -165,7 +173,9 @@ def train(model, dataloader, optimizer, criterion, device):
     total_correct = 0
     total_pixels = 0
 
-    train_loop = tqdm(dataloader,leave=False, desc="Training", dynamic_ncols=True, ascii=True)
+    train_loop = tqdm(
+        dataloader, leave=False, desc="Training", dynamic_ncols=True, ascii=True
+    )
     for imgs, masks in train_loop:
         imgs, masks = imgs.to(device), masks.to(device)
         masks = masks.squeeze(1).long()
@@ -183,7 +193,7 @@ def train(model, dataloader, optimizer, criterion, device):
         total_pixels += masks.numel()
 
         train_loop.set_postfix(loss=loss.item())
-    
+
     avg_loss = total_loss / len(dataloader)
     accuracy = total_correct / total_pixels
     return avg_loss, accuracy
@@ -195,7 +205,9 @@ def evaluate(model, dataloader, criterion, device):
     total_correct = 0
     total_pixels = 0
 
-    val_loop = tqdm(dataloader, leave=False, desc="Validation", dynamic_ncols=True, ascii=True)
+    val_loop = tqdm(
+        dataloader, leave=False, desc="Validation", dynamic_ncols=True, ascii=True
+    )
     with torch.no_grad():
         for imgs, masks in val_loop:
             imgs, masks = imgs.to(device), masks.to(device)
@@ -205,7 +217,7 @@ def evaluate(model, dataloader, criterion, device):
             total_loss += loss.item()
 
             # ---------- Compute pixel-wise accuracy ----------
-            preds = outputs.argmax(dim=1)        # [B, H, W]
+            preds = outputs.argmax(dim=1)  # [B, H, W]
             total_correct += (preds == masks).sum().item()
             total_pixels += masks.numel()
 
@@ -220,24 +232,35 @@ def evaluate(model, dataloader, criterion, device):
 # 4. Putting it together
 # ------------------------------
 if __name__ == "__main__":
-    
+
     args_list = [
-    {"name": "--data_root", "type": str, "required": True},
-    {"name": "--epochs", "type": int, "default": 20},
-    {"name": "--batch_size", "type": int, "default": 4},
-    {"name": "--lr", "type": float, "default": 1e-3},
-    {"name": "--num_classes", "type": int, "default": 2},
-    {"name": "--pretrain_type", "type": str, "default": "imagenet",
-     "choices": ["none", "imagenet", "simclr", "moco", "swav"],
-     "help": "Which pretrained weights to use"},
-    {"name": "--pretrain_path", "type": str, "default": None,
-     "help": "Path to self-supervised VISSL weights (.pth)"},
-    {"name": "--log_csv", "type": str, "default": "training_log.csv"},
-    {"name": "--log_tb", "type": str, "default": "runs/"}, 
-    {"name": "--img_prediction_path", "type": str, "default": "img_predcitions/"},
-    {"name": "--subset_frac", "type": float, "default": 1.0},
-    {"name": "--freeze_backbone_fpn", "action": "store_true",
-    "help": "Freeze the backbone and FPN, train only the segmentation head"}
+        {"name": "--data_root", "type": str, "required": True},
+        {"name": "--epochs", "type": int, "default": 20},
+        {"name": "--batch_size", "type": int, "default": 4},
+        {"name": "--lr", "type": float, "default": 1e-3},
+        {"name": "--num_classes", "type": int, "default": 2},
+        {
+            "name": "--pretrain_type",
+            "type": str,
+            "default": "imagenet",
+            "choices": ["none", "imagenet", "simclr", "moco", "swav"],
+            "help": "Which pretrained weights to use",
+        },
+        {
+            "name": "--pretrain_path",
+            "type": str,
+            "default": None,
+            "help": "Path to self-supervised VISSL weights (.pth)",
+        },
+        {"name": "--log_csv", "type": str, "default": "training_log.csv"},
+        {"name": "--log_tb", "type": str, "default": "runs/"},
+        {"name": "--img_prediction_path", "type": str, "default": "img_predcitions/"},
+        {"name": "--subset_frac", "type": float, "default": 1.0},
+        {
+            "name": "--freeze_backbone_fpn",
+            "action": "store_true",
+            "help": "Freeze the backbone and FPN, train only the segmentation head",
+        },
     ]
 
     parser = argparse.ArgumentParser()
@@ -245,17 +268,19 @@ if __name__ == "__main__":
         name = arg.pop("name")
         parser.add_argument(name, **arg)
     args = parser.parse_args()
-    
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Training on a {device}")
 
     mean, std = compute_dataset_stats(args.data_root, split="train")
     # transforms
-    transform = T.Compose([
-        #T.Resize((256, 256)),
-        #T.ToTensor(), # we do this seperately for the images and mask 
-        T.Normalize(mean=[mean], std=[std])
-    ])
+    transform = T.Compose(
+        [
+            # T.Resize((256, 256)),
+            # T.ToTensor(), # we do this seperately for the images and mask
+            T.Normalize(mean=[mean], std=[std])
+        ]
+    )
 
     # datasets
     train_ds = FlameDataset(args.data_root, split="train", transform=transform)
@@ -268,29 +293,35 @@ if __name__ == "__main__":
         subset_size = int(num_train * args.subset_frac)
         indices = np.random.choice(num_train, subset_size, replace=False)
         train_ds = Subset(train_ds, indices)
-        print(f"Using {subset_size} samples out of {num_train}({args.subset_frac*100:.2f}%) for training")
+        print(
+            f"Using {subset_size} samples out of {num_train}({args.subset_frac*100:.2f}%) for training"
+        )
 
         # ---- (optional) also shrink validation/test if you want ----
         num_val = len(val_ds)
         subset_size_val = int(num_val * args.subset_frac)
         val_indices = np.random.choice(num_val, subset_size_val, replace=False)
         val_ds = Subset(val_ds, val_indices)
-        print(f"Using {subset_size_val} samples out of {num_val} ({args.subset_frac*100:.2f}%) for training")
+        print(
+            f"Using {subset_size_val} samples out of {num_val} ({args.subset_frac*100:.2f}%) for training"
+        )
 
-        train_loader = DataLoader(train_ds, batch_size=args.batch_size,
-                                  shuffle=True, num_workers=0)
-        val_loader = DataLoader(val_ds, batch_size=args.batch_size,
-                                num_workers=0)
+        train_loader = DataLoader(
+            train_ds, batch_size=args.batch_size, shuffle=True, num_workers=0
+        )
+        val_loader = DataLoader(val_ds, batch_size=args.batch_size, num_workers=0)
 
     # model
-    model = FPN_Segmentation(num_classes=args.num_classes,
-                             pretrain_type=args.pretrain_type, 
-                             pretrain_path=args.pretrain_path).to(device)
-    # count model's trainable parameters 
+    model = FPN_Segmentation(
+        num_classes=args.num_classes,
+        pretrain_type=args.pretrain_type,
+        pretrain_path=args.pretrain_path,
+    ).to(device)
+    # count model's trainable parameters
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"Total trainable parameters: {num_params:,}")
 
-    # Freeze the backbone 
+    # Freeze the backbone
     if args.freeze_backbone_fpn:
         print("Freezing backbone and FPN. Training only the segmentation head.")
         # Freeze resnet50
@@ -301,15 +332,20 @@ if __name__ == "__main__":
             param.requires_grad = False
 
     # loss + optimizer
-    criterion = nn.CrossEntropyLoss() 
+    criterion = nn.CrossEntropyLoss()
     # criterion = nn.BCEWithLogitsLoss()
-    # criterion = DiceLoss() # ToDo: this is broken! does not 
+    # criterion = DiceLoss() # ToDo: this is broken! does not
 
     if args.freeze_backbone_fpn:
-        optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), 
-                             lr=args.lr, betas=(0.9, 0.999))
+        optimizer = torch.optim.Adam(
+            filter(lambda p: p.requires_grad, model.parameters()),
+            lr=args.lr,
+            betas=(0.9, 0.999),
+        )
     else:
-        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999)) #adam optimizer
+        optimizer = torch.optim.Adam(
+            model.parameters(), lr=args.lr, betas=(0.9, 0.999)
+        )  # adam optimizer
 
     # ------------------------------
     # Setup logging
@@ -317,14 +353,24 @@ if __name__ == "__main__":
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
     # CSV logger
-    csv_file = open(args.log_csv, "a", newline="") #a=append mode
+    csv_file = open(args.log_csv, "a", newline="")  # a=append mode
     csv_writer = csv.writer(csv_file)
     # If file is empty, write header
     if csv_file.tell() == 0:
-        csv_writer.writerow(["Timestamp", "RunName", "Epoch",
-                             "Train Loss", "Train Acc",
-                             "Val Loss", "Val Acc",
-                             "Batch Size", "LR", "Pretrain Type"])
+        csv_writer.writerow(
+            [
+                "Timestamp",
+                "RunName",
+                "Epoch",
+                "Train Loss",
+                "Train Acc",
+                "Val Loss",
+                "Val Acc",
+                "Batch Size",
+                "LR",
+                "Pretrain Type",
+            ]
+        )
 
     # TensorBoard logger
     run_name = f"{timestamp}_bs{args.batch_size}_lr{args.lr}_{args.pretrain_type}"
@@ -337,31 +383,42 @@ if __name__ == "__main__":
     for epoch in range(args.epochs):
         train_loss, train_acc = train(model, train_loader, optimizer, criterion, device)
         val_loss, val_acc = evaluate(model, val_loader, criterion, device)
-        print(f"Epoch {epoch+1}: train loss={train_loss:.4f}, train acc={train_acc:.4f}, val loss={val_loss:.4f}, val acc={val_acc:.4f}")
+        print(
+            f"Epoch {epoch+1}: train loss={train_loss:.4f}, train acc={train_acc:.4f}, val loss={val_loss:.4f}, val acc={val_acc:.4f}"
+        )
 
         # Log to CSV
-        csv_writer.writerow([timestamp, run_name, epoch+1,
-                             train_loss, train_acc,
-                             val_loss, val_acc,
-                             args.batch_size, args.lr, args.pretrain_type])
+        csv_writer.writerow(
+            [
+                timestamp,
+                run_name,
+                epoch + 1,
+                train_loss,
+                train_acc,
+                val_loss,
+                val_acc,
+                args.batch_size,
+                args.lr,
+                args.pretrain_type,
+            ]
+        )
         csv_file.flush()  # write immediately
 
         # Log to TensorBoard
-        writer.add_scalar("Loss/train", train_loss, epoch+1)
-        writer.add_scalar("Loss/val", val_loss, epoch+1)
-        writer.add_scalar("Accuracy/train", train_acc, epoch+1)
-        writer.add_scalar("Accuracy/val", val_acc, epoch+1)
+        writer.add_scalar("Loss/train", train_loss, epoch + 1)
+        writer.add_scalar("Loss/val", val_loss, epoch + 1)
+        writer.add_scalar("Accuracy/train", train_acc, epoch + 1)
+        writer.add_scalar("Accuracy/val", val_acc, epoch + 1)
     print("Training finished. Visualizing sample predictions on validation set...")
     save_path = os.path.join(args.img_prediction_path, run_name, "predictions.png")
-    visualize_predictions(model, test_ds, device, num_samples=3,
-                          save_path=save_path)
+    visualize_predictions(model, test_ds, device, num_samples=3, save_path=save_path)
     # add the image predictions to tensorboard
     pred_img = Image.open(save_path)
     pred_img = T.ToTensor()(pred_img)  # convert to tensor [C, H, W]
-    writer.add_image("Predictions", pred_img,
-                     global_step=args.epochs, dataformats="CHW")
+    writer.add_image(
+        "Predictions", pred_img, global_step=args.epochs, dataformats="CHW"
+    )
 
     # Close loggers
     csv_file.close()
     writer.close()
-

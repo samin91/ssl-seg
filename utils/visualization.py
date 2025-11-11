@@ -9,8 +9,7 @@ import os
 # ------------------------------
 
 
-def visualize_predictions(model, dataset, device,
-                          num_samples=3, save_path=None):
+def visualize_predictions(model, dataset, device, num_samples=3, save_path=None):
     model.eval()
     indices = random.sample(range(len(dataset)), num_samples)
 

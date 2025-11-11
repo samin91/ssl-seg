@@ -1,5 +1,5 @@
-""" This code is borrowed from https://github.com/YilmazKadir/
-                            Segmentation_Losses/blob/main/losses/dice.py
+"""This code is borrowed from https://github.com/YilmazKadir/
+Segmentation_Losses/blob/main/losses/dice.py
 """
 
 import torch
@@ -23,9 +23,10 @@ class DiceLoss(nn.Module):
             target_c = (target == c).float()
             input_c = input[:, c]
             intersection = (input_c * target_c).sum()
-            dice = (2.*intersection + self.smooth)/(input.sum() +
-                                                    target.sum()+self.smooth)
-            losses.append(1-dice)
+            dice = (2.0 * intersection + self.smooth) / (
+                input.sum() + target.sum() + self.smooth
+            )
+            losses.append(1 - dice)
         losses = torch.stack(losses)
         loss = losses.mean()
         return loss
