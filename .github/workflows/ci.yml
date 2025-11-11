@@ -32,5 +32,5 @@ jobs:
     - name: Check code formatting with black
       run: black --check .
 
-    - name: Lint code with flake.
+    - name: Check with flake8
       run: flake8 .
