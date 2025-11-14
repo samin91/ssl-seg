@@ -25,6 +25,7 @@ jobs:
         pip install -r requirements.txt
         pip install flake8 
         pip install black  
+        pip install mypy
 
     - name: Run tests
       run: |
@@ -36,3 +37,7 @@ jobs:
 
     - name: Check with flake8
       run: flake8 .
+
+    - name: Run mypy
+      run: |
+        mypy ssl_semseg/ 
