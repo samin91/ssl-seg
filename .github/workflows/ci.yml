@@ -39,5 +39,4 @@ jobs:
       run: flake8 .
 
     - name: Run mypy
-      run: |
-        mypy ssl_semseg/ 
+      run: mypy .

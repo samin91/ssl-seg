@@ -3,9 +3,11 @@ Segmentation_Losses/blob/main/losses/dice.py
 """
 
 import torch
+from torch import Tensor
 import torch.nn as nn
 from torch.nn.functional import softmax
 from losses.utils import flatten
+from typing import List
 
 
 class DiceLoss(nn.Module):
@@ -18,7 +20,7 @@ class DiceLoss(nn.Module):
         input, target = flatten(input, target, self.ignore_index)
         input = softmax(input, dim=1)
         num_classes = input.size(1)
-        losses = []
+        losses: List[Tensor] = []
         for c in range(num_classes):
             target_c = (target == c).float()
             input_c = input[:, c]
@@ -27,6 +29,5 @@ class DiceLoss(nn.Module):
                 input.sum() + target.sum() + self.smooth
             )
             losses.append(1 - dice)
-        losses = torch.stack(losses)
-        loss = losses.mean()
-        return loss
+        losses_tensor = torch.stack(losses)
+        return losses_tensor.mean()

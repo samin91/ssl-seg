@@ -16,11 +16,13 @@ import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 from torch.utils.data import Subset
-
+from typing import List, Dict, Any
 
 # ------------------------------
 # 1. Dataset
 # ------------------------------
+
+
 class FlameDataset(Dataset):
     def __init__(self, root, split="train", transform=None):
         self.root = root
@@ -233,7 +235,7 @@ def evaluate(model, dataloader, criterion, device):
 # ------------------------------
 if __name__ == "__main__":
 
-    args_list = [
+    args_list: List[Dict[str, Any]] = [
         {"name": "--data_root", "type": str, "required": True},
         {"name": "--epochs", "type": int, "default": 20},
         {"name": "--batch_size", "type": int, "default": 4},
@@ -291,8 +293,8 @@ if __name__ == "__main__":
         # ---- take only 1% of training set ----
         num_train = len(train_ds)
         subset_size = int(num_train * args.subset_frac)
-        indices = np.random.choice(num_train, subset_size, replace=False)
-        train_ds = Subset(train_ds, indices)
+        indices = np.random.choice(num_train, subset_size, replace=False).tolist()
+        subset_train_ds: Subset[FlameDataset] = Subset(train_ds, indices)
         print(
             f"Using {subset_size} samples out of {num_train}({args.subset_frac*100:.2f}%) for training"
         )
@@ -300,16 +302,18 @@ if __name__ == "__main__":
         # ---- (optional) also shrink validation/test if you want ----
         num_val = len(val_ds)
         subset_size_val = int(num_val * args.subset_frac)
-        val_indices = np.random.choice(num_val, subset_size_val, replace=False)
-        val_ds = Subset(val_ds, val_indices)
+        val_indices = np.random.choice(num_val, subset_size_val, replace=False).tolist()
+        subset_val_ds: Subset[FlameDataset] = Subset(val_ds, val_indices)
         print(
             f"Using {subset_size_val} samples out of {num_val} ({args.subset_frac*100:.2f}%) for training"
         )
 
         train_loader = DataLoader(
-            train_ds, batch_size=args.batch_size, shuffle=True, num_workers=0
+            subset_train_ds, batch_size=args.batch_size, shuffle=True, num_workers=0
         )
-        val_loader = DataLoader(val_ds, batch_size=args.batch_size, num_workers=0)
+        val_loader = DataLoader(
+            subset_val_ds, batch_size=args.batch_size, num_workers=0
+        )
 
     # model
     model = FPN_Segmentation(
