@@ -311,7 +311,9 @@ if __name__ == "__main__":
         train_loader = DataLoader(
             subset_train_ds, batch_size=args.batch_size, shuffle=True, num_workers=0
         )
-        val_loader = DataLoader(subset_val_ds, batch_size=args.batch_size, num_workers=0)
+        val_loader = DataLoader(
+            subset_val_ds, batch_size=args.batch_size, num_workers=0
+        )
 
     # model
     model = FPN_Segmentation(
