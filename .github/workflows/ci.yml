@@ -40,4 +40,4 @@ jobs:
 
     - name: Run mypy
       run: |
-        mypy ssl_semseg/ 
+        mypy SSL_SEMSEG/ 
